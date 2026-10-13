@@ -16,11 +16,10 @@ class Dashboard(QtWidgets.QWidget):
         super().__init__()
 
         self.user_auth = SystemAuth()
-        self.security_logs = Tile()
+        self.security_logs = SecurityLogs()
         self.system_armed = Tile()
         self.pir_motion = Tile()
-        self.pir_motion = Tile()
-        self.ambient_environment = Tile()
+        self.ambient_environment = AmbientEnvironment()
         self.manual_controls = Tile()
         self.ultrasonic_distance = UltrasonicDistance()
 
@@ -101,11 +100,29 @@ class Tile(QtWidgets.QFrame):
         #label.setAlignment(Qt.AlignmentFlag.AlignTop)
         #label_layout.addWidget(label)
 
+class AmbientEnvironment(Tile):
+    def __init__(self):
+        super().__init__()
+        tile_layout = QtWidgets.QVBoxLayout(self)
+        label = QtWidgets.QLabel("Ambient Environment", alignment=Qt.AlignmentFlag.AlignTop)
+        tile_layout.insertWidget(0, label)
+
+
+class SecurityLogs(Tile):
+    def __init__(self):
+        super().__init__()
+        tile_layout = QtWidgets.QVBoxLayout(self)
+        label = QtWidgets.QLabel("Recent Security Logs", alignment=Qt.AlignmentFlag.AlignTop)
+        tile_layout.insertWidget(0, label)
+
+
 class UltrasonicDistance(Tile):
     def __init__(self):
         super().__init__()
         tile_layout = QtWidgets.QVBoxLayout(self)
-        self.plot_widget = pg.PlotWidget()
+        label = QtWidgets.QLabel("PIR Motion detector", alignment=Qt.AlignmentFlag.AlignTop)
+        self.plot_widget = pg.PlotWidget( labels={'bottom': ('Time', 's'), 'left': ('Distance', 'cm')})
+        tile_layout.insertWidget(0,label)
         tile_layout.addWidget(self.plot_widget)
         data = [2,4,1,8]
         self.plot_widget.plot(data)
