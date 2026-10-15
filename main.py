@@ -1,7 +1,8 @@
 import sys
 from PySide6 import QtCore, QtWidgets, QtGui
-from PySide6.QtCore import Qt
+from PySide6.QtCore import QTimer, Qt, Signal, QObject
 import pyqtgraph as pg
+import datetime
 
 class MainWindow(QtWidgets.QMainWindow):
     def __init__(self):
@@ -10,17 +11,35 @@ class MainWindow(QtWidgets.QMainWindow):
         self.dashboard = Dashboard()
         self.setCentralWidget(self.dashboard)
 
+class AppState(QObject):
+    armed_status_changed = Signal(bool)
+
+    def __init__(self):
+        super().__init__()
+        self._is_armed = False
+
+        @property
+        def is_armed(self):
+            return self._is_armed
+
+        @is_armed.setter
+        def is_armed(self, value: bool):
+            if self._is_armed != value:
+                self._is_armed = value
+                self.armed_status_changed.emit(value)
 
 class Dashboard(QtWidgets.QWidget):
     def __init__(self):
         super().__init__()
 
+        self.state = AppState()
+
         self.user_auth = SystemAuth()
         self.security_logs = SecurityLogs()
-        self.system_armed = Tile()
-        self.pir_motion = Tile()
+        self.system_armed = SystemArmed()
+        self.pir_motion = PirMotion()
         self.ambient_environment = AmbientEnvironment()
-        self.manual_controls = Tile()
+        self.manual_controls = ManualControls()
         self.ultrasonic_distance = UltrasonicDistance()
 
         #self.security_logs = Tile("Recent Security Logs")
@@ -99,6 +118,37 @@ class Tile(QtWidgets.QFrame):
         #label.setAlignment(label_allignment)
         #label.setAlignment(Qt.AlignmentFlag.AlignTop)
         #label_layout.addWidget(label)
+class SystemArmed(Tile):
+    def __init__(self):
+        super().__init__()
+        tile_layout = QtWidgets.QVBoxLayout(self)
+        now = datetime.datetime.now()
+        self.time = QtWidgets.QLabel(now.strftime('%H:%M:%S'), alignment=Qt.AlignmentFlag.AlignHCenter)
+        tile_layout.insertWidget(0, self.time)
+        #self.armed_status_label = QtWidgets.QLabel(, alignment=Qt.AlignmentFlag.AlignHCenter)
+        self.timer = QTimer(self)
+        self.timer.timeout.connect(self._on_second)
+        self.timer.start(1000)
+
+    def _on_second(self):
+        now = datetime.datetime.now()
+        self.time.setText(now.strftime('%H:%M:%S'))
+
+
+
+class ManualControls(Tile):
+    def __init__(self):
+        super().__init__()
+        tile_layout = QtWidgets.QVBoxLayout(self)
+        label = QtWidgets.QLabel("Manual Controls", alignment=Qt.AlignmentFlag.AlignTop)
+        tile_layout.insertWidget(0, label)
+
+class PirMotion(Tile):
+    def __init__(self):
+        super().__init__()
+        tile_layout = QtWidgets.QVBoxLayout(self)
+        label = QtWidgets.QLabel("PIR Motion Sensor", alignment=Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignHCenter)
+        tile_layout.insertWidget(0, label)
 
 class AmbientEnvironment(Tile):
     def __init__(self):
@@ -116,11 +166,12 @@ class SecurityLogs(Tile):
         tile_layout.insertWidget(0, label)
 
 
+
 class UltrasonicDistance(Tile):
     def __init__(self):
         super().__init__()
         tile_layout = QtWidgets.QVBoxLayout(self)
-        label = QtWidgets.QLabel("PIR Motion detector", alignment=Qt.AlignmentFlag.AlignTop)
+        label = QtWidgets.QLabel("Ultrasonic Distance", alignment=Qt.AlignmentFlag.AlignTop)
         self.plot_widget = pg.PlotWidget( labels={'bottom': ('Time', 's'), 'left': ('Distance', 'cm')})
         tile_layout.insertWidget(0,label)
         tile_layout.addWidget(self.plot_widget)
