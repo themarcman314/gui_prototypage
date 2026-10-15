@@ -18,15 +18,15 @@ class AppState(QObject):
         super().__init__()
         self._is_armed = False
 
-        @property
-        def is_armed(self):
-            return self._is_armed
+    @property
+    def is_armed(self):
+        return self._is_armed
 
-        @is_armed.setter
-        def is_armed(self, value: bool):
-            if self._is_armed != value:
-                self._is_armed = value
-                self.armed_status_changed.emit(value)
+    @is_armed.setter
+    def is_armed(self, value: bool):
+        if self._is_armed != value:
+            self._is_armed = value
+            self.armed_status_changed.emit(value)
 
 class Dashboard(QtWidgets.QWidget):
     def __init__(self):
@@ -34,9 +34,9 @@ class Dashboard(QtWidgets.QWidget):
 
         self.state = AppState()
 
-        self.user_auth = SystemAuth()
+        self.user_auth = SystemAuth(self.state)
         self.security_logs = SecurityLogs()
-        self.system_armed = SystemArmed()
+        self.system_armed = SystemArmed(self.state)
         self.pir_motion = PirMotion()
         self.ambient_environment = AmbientEnvironment()
         self.manual_controls = ManualControls()
@@ -119,13 +119,18 @@ class Tile(QtWidgets.QFrame):
         #label.setAlignment(Qt.AlignmentFlag.AlignTop)
         #label_layout.addWidget(label)
 class SystemArmed(Tile):
-    def __init__(self):
+    def __init__(self, state: AppState):
         super().__init__()
+
+        self.state = state
+
         tile_layout = QtWidgets.QVBoxLayout(self)
         now = datetime.datetime.now()
         self.time = QtWidgets.QLabel(now.strftime('%H:%M:%S'), alignment=Qt.AlignmentFlag.AlignHCenter)
         tile_layout.insertWidget(0, self.time)
-        #self.armed_status_label = QtWidgets.QLabel(, alignment=Qt.AlignmentFlag.AlignHCenter)
+        self.armed_status_label = QtWidgets.QLabel('ARMED' if self.state.is_armed == True else 'UNARMED', alignment=Qt.AlignmentFlag.AlignHCenter)
+        tile_layout.insertWidget(1,self.armed_status_label)
+        self.state.armed_status_changed.connect(self.update_armed_status_label)
         self.timer = QTimer(self)
         self.timer.timeout.connect(self._on_second)
         self.timer.start(1000)
@@ -133,6 +138,11 @@ class SystemArmed(Tile):
     def _on_second(self):
         now = datetime.datetime.now()
         self.time.setText(now.strftime('%H:%M:%S'))
+
+    def update_armed_status_label(self, is_armed: bool):
+        new_text = 'ARMED' if self.state.is_armed == True else 'UNARMED'
+        self.armed_status_label.setText(new_text)
+
 
 
 
@@ -180,16 +190,17 @@ class UltrasonicDistance(Tile):
 
 
 class SystemAuth(Tile):
-    armed = True
 
-    def __init__(self):
+    def __init__(self, state: AppState):
         super().__init__()
         tile_layout = QtWidgets.QVBoxLayout(self)
+
+        self.state = state
 
         label = QtWidgets.QLabel("User Authentication")
         passwd_text = QtWidgets.QLabel("Enter Password:")
         passwd_box = QtWidgets.QLineEdit(echoMode=QtWidgets.QLineEdit.EchoMode.Password)
-        self.toggle_btn = QtWidgets.QPushButton("Disarm System" if self.armed == True else "Arm System")
+        self.toggle_btn = QtWidgets.QPushButton("Disarm System" if self.state.is_armed == True else "Arm System")
         self.toggle_btn.clicked.connect(self._on_toggle)
 
         # use QFormLayout in order to wrap passwd text and box together
@@ -202,8 +213,8 @@ class SystemAuth(Tile):
         tile_layout.insertWidget(2, self.toggle_btn, alignment=Qt.AlignmentFlag.AlignCenter)
 
     def _on_toggle(self):
-        self.armed = not(self.armed)
-        new_text = "Disarm System" if self.armed == True else "Arm System"
+        self.state.is_armed = not(self.state.is_armed)
+        new_text = "Disarm System" if self.state.is_armed == True else "Arm System"
         self.toggle_btn.setText(new_text)
 
 if __name__ == "__main__":
